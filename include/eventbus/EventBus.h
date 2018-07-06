@@ -15,11 +15,18 @@ namespace Dexode
 class EventBus
 {
 public:
-	EventBus() = default;
+	EventBus(){
+		_tokener = std::make_shared<int>();
+		_callbacks = std::make_shared<std::map<std::size_t, std::unique_ptr<VectorInterface>>>();
+	};
+	EventBus(std::shared_ptr<int> tk){
+		_tokener = tk;
+		_callbacks = std::make_shared<std::map<std::size_t, std::unique_ptr<VectorInterface>>>();
+	};
 
 	~EventBus()
 	{
-		_callbacks.clear();
+		(*_callbacks).clear();
 	}
 
 	EventBus(const EventBus&) = delete;
@@ -27,6 +34,22 @@ public:
 
 	EventBus& operator=(EventBus&&) = delete;
 	EventBus& operator=(const EventBus&) = delete;
+
+	void ConnectBus(std::shared_ptr<EventBus> bus){
+
+		for (auto& element : (*_callbacks))
+		{
+			std::unique_ptr<VectorInterface>& vector = (*(bus->_callbacks))[element.first];
+			if (vector == nullptr)
+			{
+				vector.reset(element.second.release());
+			}else{
+				(*vector).merge(element.first,element.second.get());
+			}
+		}
+		_callbacks=bus->_callbacks;
+
+	}
 
 	/**
 	 * Register listener for event. Returns token used for unlisten.
@@ -38,7 +61,7 @@ public:
 	template<typename Event>
 	int listen(const std::function<void(const Event&)>& callback)
 	{
-		const int token = ++_tokener;
+		const int token = ++(*_tokener);
 		listen<Event>(token, callback);
 		return token;
 	}
@@ -55,7 +78,7 @@ public:
 
 		assert(callback && "callback should be valid");//Check for valid object
 
-		std::unique_ptr<VectorInterface>& vector = _callbacks[getTypeId<Event>()];
+		std::unique_ptr<VectorInterface>& vector = (*_callbacks)[getTypeId<Event>()];
 		if (vector == nullptr)
 		{
 			vector.reset(new Vector{});
@@ -70,7 +93,7 @@ public:
 	 */
 	void unlistenAll(const int token)
 	{
-		for (auto& element : _callbacks)
+		for (auto& element : (*_callbacks))
 		{
 			element.second->remove(token);
 		}
@@ -83,8 +106,8 @@ public:
 	template<typename Event>
 	void unlisten(const int token)
 	{
-		auto found = _callbacks.find(getTypeId<Event>());
-		if (found != _callbacks.end())
+		auto found = _callbacks->find(getTypeId<Event>());
+		if (found != _callbacks->end())
 		{
 			found->second->remove(token);
 		}
@@ -100,8 +123,8 @@ public:
 	{
 		using Vector = VectorImpl<Event>;
 		const auto typeId = getTypeId<Event>();//TODO think about constexpr
-		auto found = _callbacks.find(typeId);
-		if (found == _callbacks.end())
+		auto found = _callbacks->find(typeId);
+		if (found == _callbacks->end())
 		{
 			return;// no such notifications
 		}
@@ -118,12 +141,15 @@ public:
 		vectorImpl->commitTransaction();
 	}
 
+	std::shared_ptr<int> _tokener = nullptr;
+
 private:
 	struct VectorInterface
 	{
 		virtual ~VectorInterface() = default;
 
 		virtual void remove(const int token) = 0;
+		virtual void merge(const int token, const VectorInterface* callback)=0;
 	};
 
 	template<typename Event>
@@ -136,6 +162,25 @@ private:
 		ContainerType toAdd;
 		std::vector<int> toRemove;
 		int inTransaction = 0;
+
+		void merge(const int token, const VectorInterface* dirtyCallback) override{
+
+			const VectorImpl<Event>*  callback = dynamic_cast<const VectorImpl<Event>*> (dirtyCallback);
+			assert(callback!= nullptr);
+			for (const auto& element : callback->toAdd)
+			{
+				toAdd.emplace_back(element);
+			}
+			for (const auto& element : callback->container)
+			{
+				toAdd.emplace_back(element);
+			}
+			for (const auto& element : callback->toRemove)
+			{
+				toRemove.emplace_back(element);
+			}
+			commitTransaction();
+		}
 
 		virtual void remove(const int token) override
 		{
@@ -192,16 +237,18 @@ private:
 			{
 				for (auto token : toRemove)
 				{
-					remove(token);
+					auto find=std::__find_if(container.begin(),container.end(),[token](auto item){ return (*item).first==token;});
+					if (find != container.end())
+					{
+						remove(token);
+					}
 				}
 				toRemove.clear();
 			}
 		}
 	};
 
-	int _tokener = 0;
-	std::map<std::size_t, std::unique_ptr<VectorInterface>> _callbacks;
-
+	std::shared_ptr<std::map<std::size_t, std::unique_ptr<VectorInterface>>> _callbacks = nullptr;
 	template<typename T>
 	static std::size_t getTypeId()
 	{
