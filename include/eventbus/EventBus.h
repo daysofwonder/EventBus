@@ -237,10 +237,12 @@ private:
 			{
 				for (auto token : toRemove)
 				{
-					auto find=std::__find_if(container.begin(),container.end(),[token](auto item){ return (*item).first==token;});
-					if (find != container.end())
+					for (size_t i = 0; i < container.size(); i++)
 					{
-						remove(token);
+						if (container.at(i).first == token) {
+							remove(token);
+							break;
+						}
 					}
 				}
 				toRemove.clear();
