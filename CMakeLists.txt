@@ -57,9 +57,7 @@ INSTALL(EXPORT EventBusConfig
 		)
 EXPORT(TARGETS EventBus FILE EventBusConfig.cmake)
 
-IF(BUILD_TESTING)
-	ADD_SUBDIRECTORY(test/)
-ENDIF()
+add_test_subdirectory(test)
 
 IF(PERFORMANCE)
 	ADD_SUBDIRECTORY(performance/)
