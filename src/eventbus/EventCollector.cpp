@@ -2,98 +2,93 @@
 // Created by Dawid Drozd aka Gelldur on 18/10/16.
 //
 
-#include <eventbus/EventCollector.h>
-
 #include <cassert>
+#include <eventbus/EventCollector.h>
 
 namespace
 {
 
-void null_deleter(Dexode::EventBus*)
-{
-}
+    void null_deleter(Dexode::EventBus*) {}
 
-}
+} // namespace
 
 namespace Dexode
 {
 
-EventCollector::EventCollector(const std::shared_ptr<EventBus>& bus)
-		: _bus(bus)
-{
-	assert(_bus);
-}
+    EventCollector::EventCollector(const std::shared_ptr<EventBus>& bus)
+        : _bus(bus)
+    {
+        assert(_bus);
+    }
 
-//Maybe ugly but hey ;) Less code and simply i can :D
-EventCollector::EventCollector(EventBus* bus)
-		: _bus(bus, &null_deleter)
-{
-}
+    // Maybe ugly but hey ;) Less code and simply i can :D
+    EventCollector::EventCollector(EventBus* bus)
+        : _bus(bus, &null_deleter)
+    {}
 
-EventCollector::EventCollector(const EventCollector& other)
-		: _bus(other._bus)
-{
-}
+    EventCollector::EventCollector(const EventCollector& other)
+        : _bus(other._bus)
+    {}
 
-EventCollector::EventCollector(EventCollector&& other)
-		: _token(other._token)
-		, _bus(std::move(other._bus))
-{
-	other._token = 0;
-}
+    EventCollector::EventCollector(EventCollector&& other)
+        : _token(other._token)
+        , _bus(std::move(other._bus))
+    {
+        other._token = 0;
+    }
 
-EventCollector::~EventCollector()
-{
-	unlistenAll();
-}
+    EventCollector::~EventCollector()
+    {
+        unlistenAll();
+    }
 
-EventCollector& EventCollector::operator=(const EventCollector& other)
-{
-	if (this == &other)
-	{
-		return *this;
-	}
-	if (other._bus.get() != _bus.get())
-	{
-		unlistenAll();
-		_bus = other._bus;
-	}
+    EventCollector& EventCollector::operator=(const EventCollector& other)
+    {
+        if (this == &other)
+        {
+            return *this;
+        }
+        if (other._bus.get() != _bus.get())
+        {
+            unlistenAll();
+            _bus = other._bus;
+        }
 
-	return *this;
-}
+        return *this;
+    }
 
-EventCollector& EventCollector::operator=(EventCollector&& other)
-{
-	if (this == &other)
-	{
-		return *this;
-	}
+    EventCollector& EventCollector::operator=(EventCollector&& other)
+    {
+        if (this == &other)
+        {
+            return *this;
+        }
 
-	unlistenAll();
+        unlistenAll();
 
-	_token = other._token;
-	other._token = 0;
-	_bus = std::move(other._bus);
+        _token = other._token;
+        other._token = 0;
+        _bus = std::move(other._bus);
 
-	return *this;
-}
+        return *this;
+    }
 
-void EventCollector::unlistenAll()
-{
-	if (_token != 0 && _bus)
-	{
-		_bus->unlistenAll(_token);
-	}
-}
+    void EventCollector::unlistenAll()
+    {
+        if (_token != 0 && _bus)
+        {
+            _bus->unlistenAll(_token);
+        }
+    }
 
-BusAttorney EventCollector::getBus() const
-{
-	return BusAttorney{_bus};
-}
+    BusAttorney EventCollector::getBus() const
+    {
+        return BusAttorney{ _bus };
+    }
 
-bool EventCollector::isUsing(const std::shared_ptr<EventBus>& bus) const
-{
-	return _bus == bus;
-}
+    bool EventCollector::isUsing(const std::shared_ptr<EventBus>& bus) const
+    {
+        return _bus == bus;
+    }
 
-}
+} // namespace Dexode
