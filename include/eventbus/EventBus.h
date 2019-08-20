@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <typeinfo>
+#include <unordered_map>
 #include <vector>
 
 namespace Dexode
@@ -140,7 +141,10 @@ namespace Dexode
             vectorImpl->beginTransaction();
             for (const auto& element : vectorImpl->container)
             {
-                element.second(event);
+                if (vectorImpl->hasBeenRemoved(element.first) == false) // was not removed in a previous transaction
+                {
+                    element.second(event);
+                }
             }
             vectorImpl->commitTransaction();
         }
@@ -164,7 +168,7 @@ namespace Dexode
             using ContainerType = std::vector<ContainerElement>;
             ContainerType container;
             ContainerType toAdd;
-            std::vector<int> toRemove;
+            std::unordered_map<int, int> toRemove;
             int inTransaction = 0;
 
             void merge(const int token, const VectorInterface* dirtyCallback) override
@@ -182,7 +186,7 @@ namespace Dexode
                 }
                 for (const auto& element : callback->toRemove)
                 {
-                    toRemove.emplace_back(element);
+                    toRemove.emplace(element);
                 }
                 commitTransaction();
             }
@@ -191,7 +195,7 @@ namespace Dexode
             {
                 if (inTransaction > 0)
                 {
-                    toRemove.push_back(token);
+                    toRemove.emplace(token, inTransaction);
                     return;
                 }
 
@@ -239,19 +243,25 @@ namespace Dexode
                 }
                 if (toRemove.empty() == false)
                 {
-                    for (auto token : toRemove)
+                    for (auto tokenAndTransaction : toRemove)
                     {
                         for (size_t i = 0; i < container.size(); i++)
                         {
-                            if (container.at(i).first == token)
+                            if (container.at(i).first == tokenAndTransaction.first)
                             {
-                                remove(token);
+                                remove(tokenAndTransaction.first);
                                 break;
                             }
                         }
                     }
                     toRemove.clear();
                 }
+            }
+
+            bool hasBeenRemoved(const int token) const
+            {
+                const auto found = toRemove.find(token);
+                return (found != toRemove.cend() && inTransaction > found->second);
             }
         };
 
