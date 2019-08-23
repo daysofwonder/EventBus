@@ -74,6 +74,26 @@ namespace Dexode
             }
         }
 
+        /* Be the only one to listen to this events, usefull when we have rentrant states
+        */
+        template<typename Event>
+        void listenOnly(const std::function<void(const Event&)>& callback)
+        {
+            if (!callback || !_bus)
+            {
+                return; // Skip such things
+            }
+            if (_token == 0)
+            {
+                _token = _bus->listen<Event>(callback);
+            }
+            else
+            {
+                _bus->unlisten<Event>(_token);
+                _bus->listen<Event>(_token, callback);
+            }
+        }
+
         void unlistenAll();
 
         /**
