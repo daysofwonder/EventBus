@@ -51,7 +51,7 @@ TEST(EventCollector, DoubleListenTest)
     EXPECT_EQ(callCount, 2);
 
     listener.unlistenAll();
-        
+
     bus.notify(SimpleEvent{ 3 });
     EXPECT_EQ(callCount, 2);
 }
@@ -69,7 +69,7 @@ TEST(EventCollector, SimpleLoopTest)
         Dexode::EventCollector listener{ &bus };
         for (int i = 0; i < 5; ++i)
         {
-            listener.listenOnly<SimpleEvent>([&](const SimpleEvent& event) {
+            listener.onlyListenerFor<SimpleEvent>([&](const SimpleEvent& event) {
                 EXPECT_EQ(event.value, 3);
                 ++callCount;
             });
