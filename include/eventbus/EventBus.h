@@ -18,7 +18,7 @@ namespace Dexode
     public:
         EventBus()
         {
-            _tokener = std::make_shared<int>();
+            _tokener = std::make_shared<int>(0);
             _callbacks = std::make_shared<std::map<std::size_t, std::unique_ptr<VectorInterface>>>();
         };
         EventBus(std::shared_ptr<int> tk)
